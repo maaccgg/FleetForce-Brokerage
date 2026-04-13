@@ -52,7 +52,7 @@ export default function CartaInstruccionesFinal() {
           </div>
           <div className="text-right uppercase">
             <h2 className="text-xl font-black">Carta de Instrucciones</h2>
-            <p className="font-bold">Folio T-Dash: <span className="text-blue-600">{emb.folio}</span></p>
+            <p className="font-bold">Folio: <span className="text-blue-600">{emb.folio}</span></p>
             <p className="text-[9px] text-slate-400">Fecha: {new Date(emb.created_at).toLocaleDateString()}</p>
           </div>
         </div>
@@ -130,7 +130,7 @@ export default function CartaInstruccionesFinal() {
               <tr>
                 <td className="p-3 border border-slate-900">{emb.concepto_servicio}</td>
                 <td className="p-3 border border-slate-900">{emb.detalle_servicio}</td>
-                <td className="p-3 border border-slate-900 uppercase">{emb.peso_lbs} LBS / LEGALES</td>
+                <td className="p-3 border border-slate-900 uppercase">{emb.peso_lbs} LBS</td>
                 <td className="p-3 border border-slate-900 text-blue-600 text-sm">
                   ${emb.tarifa?.toLocaleString()} {emb.moneda}
                 </td>
