@@ -9,9 +9,11 @@ export default function EmbarquesPage() {
   const [embarques, setEmbarques] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+useEffect(() => {
     async function fetchEmbarques() {
-      // Extraemos los embarques y hacemos un "JOIN" con clientes y transportistas
+      setLoading(true);
+      
+      // Corregimos 'fecha_creacion' por 'created_at'
       const { data, error } = await supabase
         .from('embarques')
         .select(`
@@ -20,13 +22,18 @@ export default function EmbarquesPage() {
           estado,
           origen_ciudad,
           destino_ciudad,
-          fecha_creacion,
+          created_at, 
           clientes ( razon_social ),
           transportistas ( razon_social )
         `)
-        .order('fecha_creacion', { ascending: false });
+        .order('created_at', { ascending: false });
 
-      if (!error && data) {
+      if (error) {
+        // Esto es vital para saber qué está fallando
+        console.error("Error al obtener embarques:", error.message, error.details);
+      }
+
+      if (data) {
         setEmbarques(data);
       }
       setLoading(false);

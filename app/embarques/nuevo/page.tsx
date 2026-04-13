@@ -2,19 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Truck, MapPin, DollarSign, Save, Loader2, Building2 } from "lucide-react";
+import { Truck, MapPin, DollarSign, Save, Loader2, Link as LinkIcon, PhoneCall } from "lucide-react";
 import { supabase } from "../../../lib/supabase/client"; 
 
 export default function NuevoEmbarque() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [empresaId, setEmpresaId] = useState<string | null>(null);
-  
-  // Catálogos extraídos de la base de datos
   const [clientes, setClientes] = useState<any[]>([]);
   const [transportistas, setTransportistas] = useState<any[]>([]);
 
-  // Estado del formulario (Ahora usa IDs relacionales)
   const [formData, setFormData] = useState({
     folio: "",
     ejecutivo: "",
@@ -23,183 +19,128 @@ export default function NuevoEmbarque() {
     unidad: "",
     placas: "",
     operador: "",
+    // Origen Avanzado
     origen_direccion: "",
     origen_ciudad: "",
+    origen_contacto: "",
+    origen_maps_link: "",
+    // Destino Avanzado
     destino_direccion: "",
     destino_ciudad: "",
+    destino_contacto: "",
+    destino_maps_link: "",
+    // Detalles de Carga y Finanzas
     tipo_carga: "GENERAL",
     peso_lbs: "",
+    tarifa: "",
+    concepto_servicio: "FLETE TERRESTRE",
+    detalle_servicio: "EXPORTACIÓN",
   });
 
-  // 1. Cargar datos maestros al iniciar la pantalla
   useEffect(() => {
-    async function inicializarEntorno() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setEmpresaId(user.id); // Usamos el ID del usuario como Tenant ID por ahora
-        
-        // Consultar catálogos
-        const { data: clientesData } = await supabase.from('clientes').select('id, razon_social');
-        const { data: transportistasData } = await supabase.from('transportistas').select('id, razon_social');
-        
-        if (clientesData) setClientes(clientesData);
-        if (transportistasData) setTransportistas(transportistasData);
-      }
+    async function loadCatalogs() {
+      const { data: c } = await supabase.from('clientes').select('id, razon_social');
+      const { data: t } = await supabase.from('transportistas').select('id, razon_social');
+      if (c) setClientes(c);
+      if (t) setTransportistas(t);
     }
-    inicializarEntorno();
+    loadCatalogs();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 2. Ejecutar la inserción relacional
   const guardarEmbarque = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!empresaId) return alert("Error: Sesión no detectada.");
-    
     setLoading(true);
 
-    const { error } = await supabase
-      .from('embarques')
-      .insert([
-        {
-          empresa_id: empresaId,
-          folio: formData.folio,
-          ejecutivo: formData.ejecutivo,
-          cliente_id: formData.cliente_id || null,
-          transportista_id: formData.transportista_id || null,
-          unidad: formData.unidad,
-          placas: formData.placas,
-          operador: formData.operador,
-          origen_direccion: formData.origen_direccion,
-          origen_ciudad: formData.origen_ciudad,
-          destino_direccion: formData.destino_direccion,
-          destino_ciudad: formData.destino_ciudad,
-          tipo_carga: formData.tipo_carga,
-          peso_lbs: formData.peso_lbs ? parseFloat(formData.peso_lbs) : null,
-        }
-      ]);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { error } = await supabase.from('embarques').insert([{
+      empresa_id: user?.id,
+      ...formData,
+      peso_lbs: formData.peso_lbs ? parseFloat(formData.peso_lbs) : null,
+      tarifa: formData.tarifa ? parseFloat(formData.tarifa) : null,
+    }]);
 
     setLoading(false);
-
-    if (error) {
-      alert("Falla en la inserción: " + error.message);
-    } else {
-      alert("Folio generado y sellado en la base de datos.");
-      router.push("/embarques");
-    }
+    if (error) alert(error.message);
+    else router.push("/embarques");
   };
 
   return (
-    <div className="max-w-5xl mx-auto pb-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">
-          Despacho Operativo
-        </h1>
-        <p className="text-sm text-slate-500 font-medium">Asignación de unidades y generación de Carta de Instrucciones.</p>
-      </div>
+    <div className="max-w-5xl mx-auto pb-20">
+      <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic mb-8">
+        Nueva Operación Institucional
+      </h1>
 
       <form onSubmit={guardarEmbarque} className="space-y-6">
-        
-        {/* BLOQUE 1: ASIGNACIÓN LOGÍSTICA */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
-            <Truck className="text-blue-600" size={24} />
-            <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">1. Estructura del Servicio</h2>
+        {/* BLOQUE 1: ASIGNACIÓN */}
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-6 border-b pb-4">
+            <Truck className="text-blue-600" size={20} />
+            <h2 className="text-xs font-black uppercase tracking-widest">Asignación de Servicio</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <input type="text" name="folio" required placeholder="Folio (Ej. TDL004)" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm outline-none focus:border-blue-500" />
+            <input type="text" name="ejecutivo" placeholder="Ejecutivo Responsable" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm outline-none focus:border-blue-500" />
+            <select name="cliente_id" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm">
+              <option value="">-- Seleccionar Cliente --</option>
+              {clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}
+            </select>
+            <select name="transportista_id" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm">
+              <option value="">-- Seleccionar Transportista --</option>
+              {transportistas.map(t => <option key={t.id} value={t.id}>{t.razon_social}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* BLOQUE 2: LOGÍSTICA DETALLADA */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* ORIGEN */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-[10px] font-black uppercase mb-4 text-emerald-600 flex items-center gap-2">
+              <MapPin size={14}/> Datos de Origen
+            </h3>
+            <div className="space-y-3">
+              <input type="text" name="origen_direccion" placeholder="Dirección Completa" onChange={handleChange} className="w-full bg-slate-50 border p-2.5 rounded-lg text-xs outline-none" />
+              <input type="text" name="origen_ciudad" placeholder="Ciudad y Estado" onChange={handleChange} className="w-full bg-slate-50 border p-2.5 rounded-lg text-xs outline-none" />
+              <input type="text" name="origen_contacto" placeholder="Nombre de Contacto en Carga" onChange={handleChange} className="w-full bg-slate-50 border p-2.5 rounded-lg text-xs outline-none" />
+              <input type="text" name="origen_maps_link" placeholder="Link de Google Maps" onChange={handleChange} className="w-full bg-slate-50 border p-2.5 rounded-lg text-xs outline-none" />
+            </div>
+          </div>
+
+          {/* DESTINO */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-[10px] font-black uppercase mb-4 text-blue-600 flex items-center gap-2">
+              <MapPin size={14}/> Datos de Destino
+            </h3>
+            <div className="space-y-3">
+              <input type="text" name="destino_direccion" placeholder="Dirección Completa" onChange={handleChange} className="w-full bg-slate-50 border p-2.5 rounded-lg text-xs outline-none" />
+              <input type="text" name="destino_ciudad" placeholder="Ciudad y Estado" onChange={handleChange} className="w-full bg-slate-50 border p-2.5 rounded-lg text-xs outline-none" />
+              <input type="text" name="destino_contacto" placeholder="Nombre de Contacto en Entrega" onChange={handleChange} className="w-full bg-slate-50 border p-2.5 rounded-lg text-xs outline-none" />
+              <input type="text" name="destino_maps_link" placeholder="Link de Google Maps" onChange={handleChange} className="w-full bg-slate-50 border p-2.5 rounded-lg text-xs outline-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* BLOQUE 3: CARGA Y FINANZAS */}
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-6 border-b pb-4">
+            <DollarSign className="text-slate-900" size={20} />
+            <h2 className="text-xs font-black uppercase tracking-widest">Carga y Tarifas</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Folio T-DASH</label>
-              <input type="text" name="folio" required onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Ej. TDL004" />
-            </div>
-            
-            {/* MENÚ RELACIONAL: CLIENTES */}
-            <div className="md:col-span-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Cliente (Expedidor/Consignatario)</label>
-              <select name="cliente_id" onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-blue-500 cursor-pointer">
-                <option value="">-- Seleccione un Cliente Maestro --</option>
-                {clientes.map(c => (
-                  <option key={c.id} value={c.id}>{c.razon_social}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* MENÚ RELACIONAL: TRANSPORTISTAS */}
-            <div className="md:col-span-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Línea Transportista Asignada</label>
-              <select name="transportista_id" onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-blue-500 cursor-pointer">
-                <option value="">-- Seleccione un Transportista --</option>
-                {transportistas.map(t => (
-                  <option key={t.id} value={t.id}>{t.razon_social}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Unidad</label>
-              <input type="text" name="unidad" onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Ej. DV53" />
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Placas</label>
-              <input type="text" name="placas" onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-blue-500" />
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Operador (Driver)</label>
-              <input type="text" name="operador" onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-blue-500" />
-            </div>
+            <input type="text" name="tipo_carga" defaultValue="GENERAL" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm outline-none" />
+            <input type="number" name="peso_lbs" placeholder="Peso (LBS)" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm outline-none" />
+            <input type="number" name="tarifa" placeholder="Tarifa (USD)" onChange={handleChange} className="w-full bg-emerald-50 border-emerald-200 border p-3 rounded-xl text-sm font-bold text-emerald-900" />
           </div>
         </div>
 
-        {/* BLOQUE 2: RUTA OPERATIVA */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-            <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
-              <MapPin className="text-emerald-600" size={24} />
-              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">Origen</h2>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Dirección de Carga</label>
-                <input type="text" name="origen_direccion" onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-emerald-500" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Ciudad / Estado</label>
-                <input type="text" name="origen_ciudad" onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-emerald-500" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-            <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
-              <MapPin className="text-blue-600" size={24} />
-              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">Destino</h2>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Dirección de Entrega</label>
-                <input type="text" name="destino_direccion" onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Ciudad / Estado</label>
-                <input type="text" name="destino_ciudad" onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-blue-500" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* BOTÓN DE ACCIÓN */}
-        <div className="flex justify-end pt-4">
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg"
-          >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-            {loading ? 'Sincronizando...' : 'Generar Carta de Instrucciones'}
-          </button>
-        </div>
-
+        <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-xl">
+          {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Sellar Embarque y Generar Folio"}
+        </button>
       </form>
     </div>
   );

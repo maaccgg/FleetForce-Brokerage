@@ -20,9 +20,20 @@ export default function ClientesPage() {
   });
 
   // 1. Inicializar datos
-  useEffect(() => {
-    fetchClientes();
-  }, []);
+useEffect(() => {
+  async function checkUser() {
+    const { data, error } = await supabase.auth.getSession();
+    console.log("Estado de la sesión:", data.session);
+    if (error) console.error("Error de Auth:", error.message);
+    
+    if (!data.session) {
+      console.warn("No hay sesión activa. Redirigiendo...");
+      // router.push('/login'); // Opcional: activar después de probar
+    }
+  }
+  checkUser();
+  fetchClientes();
+}, []);
 
   const fetchClientes = async () => {
     setLoading(true);
