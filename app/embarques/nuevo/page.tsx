@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Truck, MapPin, DollarSign, Save, Loader2, Search, BookOpen, X } from "lucide-react"; // Añadimos X
+import { Truck, MapPin, DollarSign, Save, Loader2, Search, BookOpen, X } from "lucide-react";
 import { supabase } from "../../../lib/supabase/client"; 
 
 export default function NuevoEmbarque() {
@@ -13,6 +13,7 @@ export default function NuevoEmbarque() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [transportistas, setTransportistas] = useState<any[]>([]);
   const [direcciones, setDirecciones] = useState<any[]>([]);
+  const [tarifasCatalogo, setTarifasCatalogo] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     folio: "",
@@ -42,9 +43,16 @@ export default function NuevoEmbarque() {
       const { data: c } = await supabase.from('clientes').select('id, razon_social');
       const { data: t } = await supabase.from('transportistas').select('id, razon_social');
       const { data: d } = await supabase.from('direcciones').select('*').order('nombre_lugar');
+      
+      // Fetch relacional de tarifas (igual que en tu módulo de tarifas)
+      const { data: trf } = await supabase
+        .from('tarifas')
+        .select('*, transportistas(razon_social), origen:direcciones!origen_id(nombre_lugar), destino:direcciones!destino_id(nombre_lugar)');
+
       if (c) setClientes(c);
       if (t) setTransportistas(t);
       if (d) setDirecciones(d);
+      if (trf) setTarifasCatalogo(trf);
     }
     loadData();
   }, []);
@@ -95,6 +103,9 @@ export default function NuevoEmbarque() {
     }
   };
 
+  // Filtrado inteligente: Solo mostramos tarifas de compra (transportistas) para la carta de instrucciones
+  const tarifasTransportistas = tarifasCatalogo.filter(t => t.precio_costo > 0);
+
   return (
     <div className="max-w-5xl mx-auto pb-20">
       <div className="mb-8 flex justify-between items-start">
@@ -102,7 +113,6 @@ export default function NuevoEmbarque() {
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Despacho Institucional</h1>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Generación de Carta de Instrucciones</p>
         </div>
-        {/* BOTÓN X PARA REGRESAR */}
         <button 
           onClick={() => router.push('/embarques')}
           className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900"
@@ -112,20 +122,38 @@ export default function NuevoEmbarque() {
       </div>
 
       <form onSubmit={guardarEmbarque} className="space-y-6">
-        {/* Resto del formulario igual... */}
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
-           <input type="text" name="folio" required placeholder="Folio (Ej. TDL004)" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm" />
-           <select name="cliente_id" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold">
-              <option value="">-- Seleccionar Cliente --</option>
-              {clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}
-           </select>
-           <select name="transportista_id" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold">
-              <option value="">-- Seleccionar Transportista --</option>
-              {transportistas.map(t => <option key={t.id} value={t.id}>{t.razon_social}</option>)}
-           </select>
-           <input type="text" name="operador" placeholder="Nombre del Operador" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm" />
+        
+        {/* BLOQUE 1: IDENTIFICACIÓN Y ASIGNACIÓN */}
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+             <input type="text" name="folio" required placeholder="Folio (Ej. TDL004)" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm uppercase font-black" />
+             <select name="cliente_id" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold">
+                <option value="">-- Seleccionar Cliente --</option>
+                {clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}
+             </select>
+             <select name="transportista_id" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold">
+                <option value="">-- Seleccionar Transportista --</option>
+                {transportistas.map(t => <option key={t.id} value={t.id}>{t.razon_social}</option>)}
+             </select>
+           </div>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-100">
+             <div>
+               <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Unidad Asignada</label>
+               <input type="text" name="unidad" placeholder="Ej. DV53" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm uppercase" />
+             </div>
+             <div>
+               <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Placas</label>
+               <input type="text" name="placas" placeholder="Ej. pdte" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm uppercase" />
+             </div>
+             <div>
+               <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Nombre del Operador</label>
+               <input type="text" name="operador" placeholder="Ej. pdte" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm uppercase" />
+             </div>
+           </div>
         </div>
 
+        {/* BLOQUE 2: LOGÍSTICA */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="text-[10px] font-black uppercase text-emerald-600 flex items-center gap-2 border-b pb-2">
@@ -170,15 +198,29 @@ export default function NuevoEmbarque() {
           </div>
         </div>
 
+        {/* BLOQUE 3: FINANZAS */}
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">Peso Estimado (LBS)</label>
             <input type="number" name="peso_lbs" onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm" />
           </div>
+          
           <div>
             <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">Tarifa Acordada (USD)</label>
-            <input type="number" name="tarifa" onChange={handleChange} className="w-full bg-emerald-50 border-emerald-200 border p-3 rounded-xl text-sm font-bold text-emerald-900" />
+            <select 
+              name="tarifa" 
+              onChange={handleChange} 
+              className="w-full bg-emerald-50 border-emerald-200 border p-3 rounded-xl text-sm font-bold text-emerald-900 outline-none focus:ring-2 ring-emerald-500"
+            >
+              <option value="">-- Seleccionar Tarifa --</option>
+              {tarifasTransportistas.map(t => (
+                <option key={t.id} value={t.precio_costo}>
+                  ${t.precio_costo} {t.moneda} - {t.transportistas?.razon_social || 'General'} ({t.origen?.nombre_lugar} a {t.destino?.nombre_lugar})
+                </option>
+              ))}
+            </select>
           </div>
+
           <div className="flex items-end">
             <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl hover:bg-slate-800 transition-all">
               {loading ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Emitir Instrucción"}

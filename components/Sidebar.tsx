@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase/client'; 
 import { 
   LayoutDashboard, FileCheck, Truck, TrendingUp, Settings, Users, LogOut, Route,
-  ChevronUp, X, Menu, Sun, Moon, KeyRound, Lock, Loader2, ReceiptText, Scale, Wrench 
+  ChevronUp, X, Menu, Sun, Moon, KeyRound, Lock, Loader2, ReceiptText, Scale, Wrench, Image as ImageIcon
 } from 'lucide-react';
 
 const menuItems = [
@@ -132,13 +132,23 @@ export default function Sidebar() {
           <div className="relative">
             {isConfigOpen && (
               <div className="absolute bottom-full left-0 mb-3 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-2 flex flex-col gap-1 z-50 animate-in slide-in-from-bottom-2 duration-200">
+                
+                {/* NUEVO: Enlace a Insertar Logo */}
+                <Link 
+                  href="/configuracion" 
+                  onClick={() => setIsConfigOpen(false)} 
+                  className="w-full flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase"
+                >
+                  <ImageIcon size={14} /> Insertar Logo
+                </Link>
+
                 <button onClick={toggleTheme} className="w-full flex items-center justify-between text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase">
                   <span className="flex items-center gap-2">
                     {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
                     {theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
                   </span>
                 </button>
-                <button onClick={() => setMostrarModalPassword(true)} className="w-full flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase">
+                <button onClick={() => { setMostrarModalPassword(true); setIsConfigOpen(false); }} className="w-full flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase">
                   <KeyRound size={14} /> Seguridad
                 </button>
                 <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
