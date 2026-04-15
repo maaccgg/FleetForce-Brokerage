@@ -1,257 +1,179 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Save, Loader2, Building2, Phone, Mail, Edit2, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Search, Building2, User, Phone, Mail, Loader2, X, ChevronRight } from "lucide-react";
 import { supabase } from "../../lib/supabase/client";
-import { cn } from "../../lib/utils";
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [empresaId, setEmpresaId] = useState<string | null>(null);
-
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showForm, setShowForm] = useState(false); // Controla el formulario desplegable
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     razon_social: "",
     rfc: "",
+    direccion: "",
     contacto_nombre: "",
     contacto_email: "",
-    contacto_telefono: "",
+    contacto_telefono: ""
   });
 
   useEffect(() => {
-    async function checkUser() {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) console.error("Error de Auth:", error.message);
-      if (!data.session) {
-        console.warn("No hay sesión activa.");
-      }
-    }
-    checkUser();
     fetchClientes();
   }, []);
 
-  const fetchClientes = async () => {
+  async function fetchClientes() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      setEmpresaId(user.id);
-      const { data } = await supabase
-        .from('clientes')
-        .select('*')
-        .order('razon_social', { ascending: true }); 
-      
-      if (data) setClientes(data);
-    }
+    const { data, error } = await supabase.from('clientes').select('*').order('razon_social', { ascending: true });
+    if (data) setClientes(data);
     setLoading(false);
-  };
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleEdit = (cliente: any) => {
-    setEditingId(cliente.id);
-    setFormData({
-      razon_social: cliente.razon_social || "",
-      rfc: cliente.rfc || "",
-      contacto_nombre: cliente.contacto_nombre || "",
-      contacto_email: cliente.contacto_email || "",
-      contacto_telefono: cliente.contacto_telefono || "",
-    });
-  };
-
-  const resetForm = () => {
-    setEditingId(null);
-    setFormData({
-      razon_social: "", rfc: "", contacto_nombre: "", contacto_email: "", contacto_telefono: ""
-    });
-  };
-
-  const eliminarCliente = async (id: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar este cliente? Se perderá la referencia en futuras consultas.")) return;
-    
-    const { error } = await supabase.from('clientes').delete().eq('id', id);
-    if (error) alert("Error al eliminar: " + error.message);
-    else {
-      if (editingId === id) resetForm();
-      fetchClientes();
-    }
-  };
-
   const guardarCliente = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!empresaId) return alert("Error de sesión.");
-    
     setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
     
-    // Mantenemos la lógica de backend para guardar limpio, 
-    // pero el usuario escribe de forma natural en la UI.
-    const payload = {
-      empresa_id: empresaId,
-      razon_social: formData.razon_social.toUpperCase(),
-      rfc: formData.rfc.toUpperCase(),
-      contacto_nombre: formData.contacto_nombre, // Permitimos minúsculas/mayúsculas naturales en el nombre
-      contacto_email: formData.contacto_email.toLowerCase(),
-      contacto_telefono: formData.contacto_telefono
-    };
-
-    try {
-      if (editingId) {
-        const { error } = await supabase.from('clientes').update(payload).eq('id', editingId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('clientes').insert([payload]);
-        if (error) throw error;
-      }
-
-      resetForm();
+    const { error } = await supabase.from('clientes').insert([{ ...formData, empresa_id: user?.id }]);
+    
+    if (!error) {
+      setFormData({ razon_social: "", rfc: "", direccion: "", contacto_nombre: "", contacto_email: "", contacto_telefono: "" });
+      setShowForm(false);
       fetchClientes();
-    } catch (error: any) {
-      alert("Error al guardar: " + error.message);
-    } finally {
-      setSaving(false);
+    } else {
+      alert("Error: " + error.message);
     }
+    setSaving(false);
   };
+
+  const clientesFiltrados = clientes.filter(c => 
+    c.razon_social?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.rfc?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="max-w-7xl mx-auto pb-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">
-          Directorio de Clientes
-        </h1>
-        <p className="text-sm text-slate-500 font-medium">Gestión de empresas expedidoras y consignatarias.</p>
+      {/* HEADER Y BOTÓN DESPLEGABLE */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Directorio de Clientes</h1>
+          <p className="text-sm text-slate-500 font-medium uppercase tracking-widest text-[10px]">Gestión de Cuentas Comerciales</p>
+        </div>
+        <button 
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-blue-600/20"
+        >
+          {showForm ? <X size={16} /> : <Plus size={16} />} 
+          {showForm ? "Cancelar Registro" : "Nuevo Cliente"}
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* COLUMNA IZQUIERDA: FORMULARIO */}
-        <div className="lg:col-span-1">
-          <div className={cn(
-            "p-6 rounded-2xl shadow-sm border sticky top-8 transition-all duration-300",
-            editingId ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200"
-          )}>
-            <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-2">
-                <Building2 className={editingId ? "text-amber-600" : "text-blue-600"} size={20} />
-                <h2 className={cn("text-sm font-bold uppercase tracking-wide", editingId ? "text-amber-900" : "text-slate-900")}>
-                  {editingId ? 'Editando Perfil' : 'Nuevo Registro'}
-                </h2>
-              </div>
-              {editingId && (
-                <button onClick={resetForm} className="text-amber-600 hover:text-amber-800 transition-colors">
-                  <X size={18} />
-                </button>
-              )}
+      {/* FORMULARIO DESPLEGABLE (Colapsable) */}
+      {showForm && (
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm mb-8 animate-in slide-in-from-top-4 fade-in duration-300">
+          <h3 className="text-[10px] font-black uppercase text-slate-400 mb-6 flex items-center gap-2 border-b border-slate-100 pb-2">
+            <Building2 size={14} className="text-blue-500"/> Registrar Nueva Cuenta
+          </h3>
+          <form onSubmit={guardarCliente} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Razón Social / Nombre</label>
+              <input type="text" name="razon_social" required value={formData.razon_social} onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold uppercase outline-none focus:border-blue-500" />
             </div>
-            
-            <form onSubmit={guardarCliente} className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 block">Razón Social *</label>
-                {/* Eliminada clase uppercase, mantenemos font-bold */}
-                <input type="text" name="razon_social" required value={formData.razon_social} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500 font-bold" placeholder="Ejemplo: Lubricantes de América S.A. de C.V." />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 block">RFC / TAX ID</label>
-                <input type="text" name="rfc" value={formData.rfc} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 block">Nombre de Contacto</label>
-                <input type="text" name="contacto_nombre" value={formData.contacto_nombre} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="Ej: Montserrat Presas" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 block">Teléfono</label>
-                  <input type="text" name="contacto_telefono" value={formData.contacto_telefono} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 block">Email</label>
-                  <input type="email" name="contacto_email" value={formData.contacto_email} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500" />
-                </div>
-              </div>
-
-              <button 
-                type="submit" 
-                disabled={saving}
-                className={cn(
-                  "w-full mt-4 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg",
-                  editingId ? "bg-amber-600 hover:bg-amber-700 text-white" : "bg-slate-900 hover:bg-slate-800 text-white"
-                )}
-              >
-                {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                {saving ? 'Procesando...' : editingId ? 'Actualizar Cliente' : 'Agregar Cliente'}
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">RFC / TAX ID</label>
+              <input type="text" name="rfc" value={formData.rfc} onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold uppercase outline-none focus:border-blue-500" />
+            </div>
+            <div className="md:col-span-3">
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Dirección Fiscal</label>
+              <input type="text" name="direccion" value={formData.direccion} onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold uppercase outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Contacto Principal</label>
+              <input type="text" name="contacto_nombre" value={formData.contacto_nombre} onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Correo Electrónico</label>
+              <input type="email" name="contacto_email" value={formData.contacto_email} onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Teléfono</label>
+              <input type="text" name="contacto_telefono" value={formData.contacto_telefono} onChange={handleChange} className="w-full bg-slate-50 border p-3 rounded-xl text-sm font-bold outline-none focus:border-blue-500" />
+            </div>
+            <div className="md:col-span-3 flex justify-end mt-2">
+              <button type="submit" disabled={saving} className="bg-slate-900 text-white px-10 py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
+                {saving && <Loader2 size={16} className="animate-spin" />} Guardar Cliente
               </button>
-            </form>
-          </div>
-        </div>
-
-        {/* COLUMNA DERECHA: TABLA DE CATÁLOGO */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-widest text-slate-500">
-                    <th className="p-4 font-black">Razón Social</th>
-                    <th className="p-4 font-black">Contacto</th>
-                    <th className="p-4 font-black text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={3} className="p-8 text-center"><Loader2 className="animate-spin text-blue-500 mx-auto" size={24} /></td>
-                    </tr>
-                  ) : clientes.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="p-8 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">Sin clientes registrados.</td>
-                    </tr>
-                  ) : (
-                    clientes.map((c) => (
-                      <tr key={c.id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="p-4 font-black text-slate-900">
-                          {c.razon_social}
-                          <span className="block text-[10px] font-bold text-slate-400 mt-1 uppercase">RFC: {c.rfc || 'N/D'}</span>
-                        </td>
-                        <td className="p-4 text-slate-600">
-                          <div className="flex items-center gap-1 font-bold text-xs mb-1">
-                            <Users size={12} className="text-slate-400"/> {c.contacto_nombre || 'N/D'}
-                          </div>
-                          <div className="flex flex-col gap-1 text-[10px]">
-                            {c.contacto_telefono && <span className="flex items-center gap-1 font-bold"><Phone size={10} className="text-slate-400"/> {c.contacto_telefono}</span>}
-                            {c.contacto_email && <span className="flex items-center gap-1 text-blue-600 font-medium"><Mail size={10} className="text-blue-400"/> {c.contacto_email}</span>}
-                          </div>
-                        </td>
-                        <td className="p-4 text-center">
-                          <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => handleEdit(c)} 
-                              className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all" 
-                              title="Editar Perfil"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button 
-                              onClick={() => eliminarCliente(c.id)} 
-                              className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" 
-                              title="Eliminar Cliente"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
             </div>
-          </div>
+          </form>
         </div>
+      )}
 
+      {/* BARRA DE BÚSQUEDA */}
+      <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 mb-6 flex items-center gap-3">
+        <Search className="text-slate-400" size={20} />
+        <input 
+          type="text" 
+          placeholder="Buscar cliente por nombre o RFC..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full bg-transparent border-none outline-none text-sm font-bold uppercase"
+        />
+      </div>
+
+      {/* TABLA MAESTRA */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-widest text-slate-500 font-black">
+                <th className="p-5">Razón Social</th>
+                <th className="p-5">RFC</th>
+                <th className="p-5">Contacto</th>
+                <th className="p-5 text-right"></th>
+              </tr>
+            </thead>
+            <tbody className="text-sm divide-y divide-slate-100 font-bold">
+              {loading ? (
+                <tr><td colSpan={4} className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-blue-600" /></td></tr>
+              ) : clientesFiltrados.length === 0 ? (
+                <tr><td colSpan={4} className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No hay clientes registrados.</td></tr>
+              ) : (
+                clientesFiltrados.map((cliente) => (
+                  <tr 
+                    key={cliente.id} 
+                    onClick={() => router.push(`/clientes/${cliente.id}`)} 
+                    className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
+                  >
+                    <td className="p-5 font-black text-slate-900 uppercase text-sm flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                        <Building2 size={14} />
+                      </div>
+                      {cliente.razon_social}
+                    </td>
+                    <td className="p-5 text-slate-500 uppercase text-xs">{cliente.rfc || 'N/A'}</td>
+                    <td className="p-5">
+                      <div className="flex flex-col gap-1 text-[11px] text-slate-500">
+                        {cliente.contacto_nombre && <span className="flex items-center gap-1"><User size={10}/> {cliente.contacto_nombre}</span>}
+                        {cliente.contacto_email && <span className="flex items-center gap-1"><Mail size={10}/> {cliente.contacto_email}</span>}
+                      </div>
+                    </td>
+                    <td className="p-5 text-right">
+                      <ChevronRight size={20} className="inline text-slate-300 group-hover:text-blue-500 transition-colors" />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

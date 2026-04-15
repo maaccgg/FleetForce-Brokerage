@@ -6,17 +6,17 @@ import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase/client'; 
 import { 
   LayoutDashboard, FileCheck, Truck, TrendingUp, Settings, Users, LogOut, Route,
-  ChevronUp, X, Menu, Sun, Moon, KeyRound, Lock, Loader2, ReceiptText, Scale, Wrench, Image as ImageIcon
+  ChevronUp, X, Menu, Sun, Moon, KeyRound, Lock, Loader2, ReceiptText, Scale, Wrench, Image as ImageIcon, Building2
 } from 'lucide-react';
+import build from 'next/dist/build';
 
 const menuItems = [
   { name: 'Inicio', href: '/', icon: LayoutDashboard },
   { name: 'Embarques', href: '/embarques', icon: FileCheck },
   { name: 'Clientes', href: '/clientes', icon: Users },
   { name: 'Transportistas', href: '/transportistas', icon: Truck },
+  { name: 'Ubicaciones', href: '/informacion', icon: Building2 },
   { name: 'Facturas', href: '/facturas', icon: ReceiptText },
-  { name: 'Tarifas', href: '/tarifas', icon: Route },
-  { name: 'Información', href: '/informacion', icon: Sun },
 ];
 
 export default function Sidebar() {
