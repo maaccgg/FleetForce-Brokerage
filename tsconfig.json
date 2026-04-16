@@ -32,7 +32,7 @@
     "**/*.tsx",
     "**/*.d.ts",
     "app/layout.tsx"
-  ],
+, "app/transportistas/[id]/page.js", "app/transportistas/page.js", "components/Sidebar.js"  ],
   "exclude": [
     "node_modules"
   ]
